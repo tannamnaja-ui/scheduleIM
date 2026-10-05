@@ -619,6 +619,7 @@ async function load(refresh) {
   }
 }
 $('#refresh').onclick = () => load(true);
+if (location.hash.slice(1) !== state.tab) history.replaceState(null, '', '#' + state.tab); // ให้ URL แสดงหน้าปัจจุบัน เช่น #person
 load(false);
 setInterval(() => load(false), 5 * 60 * 1000);
 </script>
