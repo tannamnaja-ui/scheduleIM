@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตารางทีมติดตั้ง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f6f9; --panel: #ffffff; --text: #1d2433; --muted: #6b7385; --line: #e2e6ee;
+    --accent: #2563eb; --accent-soft: #e8efff; --holiday: #fde9d9; --today: #f59e0b;
+    --shadow: 0 1px 3px rgba(20,30,60,.08), 0 4px 16px rgba(20,30,60,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11151c; --panel: #1a2029; --text: #e6e9ef; --muted: #98a1b3; --line: #2c3442;
+      --accent: #6c9bff; --accent-soft: #233150; --holiday: #3a2c26; --shadow: none; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Sarabun', system-ui, sans-serif; font-size: 15px; }
+  header { background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 30; }
+  .bar { max-width: 1400px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 19px; margin: 0; font-weight: 700; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  nav { display: flex; gap: 4px; max-width: 1400px; margin: 0 auto; padding: 0 16px; overflow-x: auto; }
+  nav button { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 10px 14px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  main { max-width: 1400px; margin: 0 auto; padding: 16px; }
+  main.wide { max-width: none; }
+  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; padding: 6px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 17px; margin: 0 0 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=search], input[type=date], select { font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); }
+  input[type=search] { min-width: 240px; flex: 1; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; color: var(--text); }
+  .chip.active, .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .site-tag { display: inline-block; padding: 2px 10px; border-radius: 6px; font-weight: 600; white-space: nowrap; }
+  .muted { color: var(--muted); }
+  .empty { color: var(--muted); padding: 24px; text-align: center; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  table.list { width: 100%; border-collapse: collapse; }
+  table.list th, table.list td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.list th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .big { font-size: 22px; font-weight: 700; }
+
+  /* ปฏิทินรายบุคคล */
+  .cals { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .cal h3 { margin: 0 0 8px; font-size: 15px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-grid .dow { font-size: 12px; text-align: center; color: var(--muted); }
+  .cal-day { min-height: 50px; border-radius: 6px; padding: 3px 4px; font-size: 11px; border: 1px solid var(--line); overflow: hidden; line-height: 1.25; }
+  .cal-day b { display: block; font-size: 12px; }
+  .cal-day.off { background: var(--holiday); }
+  .cal-day.today { outline: 2px solid var(--today); outline-offset: 1px; }
+  .cal-day.picked { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ภาพรวมแบบ Google Sheet */
+  .sheet-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: auto; max-height: calc(100vh - 210px); }
+  .sheet-wrap:fullscreen { max-height: none; border-radius: 0; }
+  table.sheet { border-collapse: separate; border-spacing: 0; font-size: var(--fs, 13px); }
+  table.sheet th, table.sheet td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 3px 5px; white-space: nowrap; }
+  table.sheet thead th { position: sticky; top: 0; background: var(--panel); z-index: 3; text-align: center; font-weight: 600; }
+  table.sheet thead tr:nth-child(2) th { top: var(--h1, 26px); }
+  table.sheet .sticky { position: sticky; background: var(--panel); z-index: 2; }
+  table.sheet thead .sticky { z-index: 4; }
+  table.sheet .c-no { left: 0; min-width: 36px; text-align: center; }
+  table.sheet .c-name { left: 36px; min-width: 190px; }
+  table.sheet .c-nick { left: 226px; min-width: 76px; border-right: 2px solid var(--muted); }
+  table.sheet td.day { text-align: center; font-weight: 600; min-width: 28px; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+  table.sheet td.site { padding: 2px 1px; background: var(--panel); }
+  table.sheet .blk { border: 1.5px solid var(--bd); border-radius: 6px; padding: 1px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+  table.sheet td.blank, table.sheet th.hol { background: var(--holiday); }
+  table.sheet th.today { background: var(--today); color: #000; }
+  table.sheet th.mstart, table.sheet td.mstart { border-left: 2px solid var(--muted); }
+  table.sheet tbody tr:hover td.sticky { background: var(--accent-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+
+  /* รายไซต์ */
+  .combo { position: relative; flex: 1; min-width: 260px; }
+  .combo input { width: 100%; font: inherit; padding: 8px 64px 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); }
+  .combo input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .combo-btn { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 2px 6px; }
+  #comboToggle { right: 6px; } #comboClear { right: 32px; }
+  .combo-list { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(20,30,60,.18); max-height: 380px; overflow-y: auto; z-index: 20; }
+  .combo.open .combo-list { display: block; }
+  .combo-item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer; }
+  .combo-item.active { background: var(--accent-soft); }
+  .combo-item.selected .combo-name b { color: var(--accent); }
+  .combo-no { color: var(--muted); font-size: 12px; min-width: 20px; text-align: right; }
+  .combo-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .combo-count { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-size: 12px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+  .combo-empty { padding: 14px; color: var(--muted); text-align: center; }
+  .combo mark { background: #fde047; color: #111; border-radius: 2px; }
+  .site-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .site-head .site-tag { font-size: 16px; }
+  .periods { font-size: 13px; color: var(--muted); }
+
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 99; font-size: 18px; }
+  .err { background: #fee2e2; color: #7f1d1d; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; }
+  @media (max-width: 600px) {
+    table.sheet .c-name { min-width: 120px; }
+    table.sheet .c-nick { left: 156px; }
+    input[type=search] { min-width: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="loading" id="loading">กำลังโหลดข้อมูลจาก Google Sheet…</div>
+<header>
+  <div class="bar">
+    <h1>ตารางทีมติดตั้งระบบ</h1>
+    <span class="meta" id="meta"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="refresh" title="ดึงข้อมูลล่าสุดจาก Google Sheet">↻ อัปเดตข้อมูล</button>
+    <a class="btn" id="sheetLink" target="_blank" rel="noopener">เปิด Google Sheet</a>
+  </div>
+  <nav id="tabs">
+    <button data-tab="person" class="active">รายบุคคล / ค้นหาตามวันที่</button>
+    <button data-tab="all">ภาพรวมทุกคน</button>
+    <button data-tab="site">สรุปรายไซต์</button>
+  </nav>
+</header>
+<main id="main"></main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const PALETTE = ['#fde68a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe', '#fed7aa', '#a5f3fc', '#fbcfe8', '#d9f99d', '#e9d5ff', '#99f6e4', '#fde047', '#c7d2fe', '#fca5a5'];
+const DOW = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
+
+const state = {
+  data: null, tab: ['person', 'all', 'site'].includes(location.hash.slice(1)) ? location.hash.slice(1) : (localGet('tab') || 'person'),
+  personKey: null, from: null, to: null,
+  allMonth: localGet('allMonth') || 'current', allQuery: '', fs: Number(localGet('fs')) || 13,
+  siteQuery: '', siteMonth: 'all',
+};
+function localGet(k) { try { return localStorage.getItem('sched.' + k); } catch { return null; } }
+function localSet(k, v) { try { localStorage.setItem('sched.' + k, v); } catch {} }
+
+const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+function fmtDate(iso, opt = { day: 'numeric', month: 'short', year: 'numeric' }) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('th-TH', opt);
+}
+const fmtLong = (iso) => fmtDate(iso, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const monthLabel = (m) => new Date(m.year, m.month - 1, 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+function dayDiff(a, b) { return Math.round((Date.parse(b) - Date.parse(a)) / 86400000); }
+
+// ---------- เตรียมข้อมูล ----------
+let model = null;
+function buildModel(data) {
+  const people = new Map(); // key -> person
+  const dates = [];          // [{date, holiday, month}]
+  const siteColor = new Map();
+  let pi = 0;
+  const normSite = (s) => s.replace(/\s+/g, ' ').trim();
+
+  for (const m of data.months) {
+    m.days.forEach((d) => dates.push({ ...d, month: m }));
+    for (const p of m.people) {
+      const key = p.name.replace(/\s+/g, ' ').trim();
+      if (!people.has(key)) people.set(key, { key, no: p.no, prefix: p.prefix, name: key, nick: p.nick, days: {} });
+      const person = people.get(key);
+      p.cells.forEach((c, i) => {
+        if (!c) return;
+        const site = normSite(c.site);
+        person.days[m.days[i].date] = site;
+        if (!siteColor.has(site) && c.color && c.color !== '#ffffff') siteColor.set(site, c.color);
+      });
+    }
+  }
+  const allSites = new Set();
+  people.forEach((p) => Object.values(p.days).forEach((s) => allSites.add(s)));
+  [...allSites].sort((a, b) => a.localeCompare(b, 'th')).forEach((s) => {
+    if (!siteColor.has(s)) siteColor.set(s, PALETTE[pi++ % PALETTE.length]);
+  });
+
+  // ช่วงเวลาที่อยู่แต่ละไซต์ (ช่องว่าง/วันหยุดไม่เกิน 4 วันระหว่างไซต์เดียวกันนับเป็นช่วงเดียวกัน)
+  const dateList = dates.map((d) => d.date);
+  people.forEach((p) => {
+    const periods = [];
+    let cur = null, gap = 0;
+    for (const date of dateList) {
+      const s = p.days[date];
+      if (!s) { if (cur) gap++; continue; }
+      if (cur && cur.site === s && gap <= 4) { cur.end = date; cur.count++; }
+      else { cur = { site: s, start: date, end: date, count: 1 }; periods.push(cur); }
+      gap = 0;
+    }
+    p.periods = periods;
+  });
+
+  // สรุปรายไซต์
+  const sites = new Map();
+  people.forEach((p) => p.periods.forEach((per) => {
+    if (!sites.has(per.site)) sites.set(per.site, { site: per.site, members: new Map() });
+    const ms = sites.get(per.site).members;
+    if (!ms.has(p.key)) ms.set(p.key, { person: p, periods: [] });
+    ms.get(p.key).periods.push(per);
+  }));
+
+  return { people: [...people.values()], dates, dateList, siteColor, sites, first: dateList[0], last: dateList[dateList.length - 1] };
+}
+
+function textOn(hex) {
+  const h = hex.replace('#', '');
+  const n = h.length === 3 ? h.split('').map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16));
+  return (n[0] * 299 + n[1] * 587 + n[2] * 114) / 1000 > 140 ? '#111' : '#fff';
+}
+// สีเข้มขึ้นสำหรับเส้นกรอบ
+function shade(hex, f) {
+  const h = hex.replace("#", "");
+  const n = h.length === 3 ? h.split("").map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16));
+  return "#" + n.map((v) => Math.round(v * f).toString(16).padStart(2, "0")).join("");
+}
+function siteStyle(site) { const c = model.siteColor.get(site) || '#ddd'; return `background:${c};color:${textOn(c)}`; }
+const tag = (site) => `<span class="site-tag" style="${siteStyle(site)}">${esc(site)}</span>`;
+const pname = (p) => `${esc(p.prefix)}${esc(p.name)}`;
+function matchPerson(p, q) {
+  if (!q) return true;
+  q = q.toLowerCase().replace(/\s+/g, '');
+  return (p.name + p.nick + p.no).toLowerCase().replace(/\s+/g, '').includes(q);
+}
+function clampDate(iso) { return iso < model.first ? model.first : iso > model.last ? model.last : iso; }
+
+// ---------- หน้า 1: รายบุคคล ----------
+// ช่วงวันที่ที่เลือก
+function getRange() {
+  let from = state.from || clampDate(todayISO), to = state.to || from;
+  if (from > to) [from, to] = [to, from];
+  return { from, to, dates: model.dateList.filter((d) => d >= from && d <= to), single: from === to };
+}
+function setRange(from, to = from) { state.from = clampDate(from); state.to = clampDate(to); renderPerson(); }
+const fmtRange = (r) => r.single ? fmtLong(r.from) : `${fmtDate(r.from)} – ${fmtDate(r.to)}`;
+// ไซต์ของคนหนึ่งในช่วงวันที่ -> [{site, count, first, last}] เรียงตามจำนวนวันมากสุด
+function sitesIn(p, dates) {
+  const m = new Map();
+  for (const d of dates) {
+    const s = p.days[d];
+    if (!s) continue;
+    if (!m.has(s)) m.set(s, { site: s, count: 0, first: d, last: d });
+    const x = m.get(s); x.count++; x.last = d;
+  }
+  return [...m.values()].sort((a, b) => b.count - a.count || a.first.localeCompare(b.first));
+}
+function weekRange(iso) {
+  const [y, mo, d] = iso.split('-').map(Number);
+  const dt = new Date(y, mo - 1, d), shift = (dt.getDay() + 6) % 7;
+  const toISO = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  const a = new Date(y, mo - 1, d - shift);
+  const b = new Date(y, mo - 1, d - shift + 6);
+  return [toISO(a), toISO(b)];
+}
+
+function renderPerson() {
+  const range = getRange();
+  const person = model.people.find((p) => p.key === state.personKey);
+
+  let html = `<div class="card" id="searchCard">
+    <h2>ค้นหาบุคคล</h2>
+    <div class="row">
+      <div class="combo" id="combo">
+        <input type="text" id="q" placeholder="เลือกหรือพิมพ์ชื่อ / ชื่อเล่น…" value="${person ? esc(`${person.nick} · ${person.name}`) : ''}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="comboList">
+        <button class="combo-btn" id="comboClear" title="ล้าง" style="${person ? '' : 'display:none'}">×</button>
+        <button class="combo-btn" id="comboToggle" title="แสดงรายชื่อ" tabindex="-1">▾</button>
+        <div class="combo-list" id="comboList" role="listbox"></div>
+      </div>
+      <label class="row" style="gap:6px">วันที่ <input type="date" id="dFrom" value="${range.from}" min="${model.first}" max="${model.last}"></label>
+      <label class="row" style="gap:6px">ถึง <input type="date" id="dTo" value="${range.to}" min="${model.first}" max="${model.last}"></label>
+      <div class="row" style="gap:6px">
+        <button class="btn" data-quick="today">วันนี้</button>
+        <button class="btn" data-quick="week">สัปดาห์นี้</button>
+        <button class="btn" data-quick="month">เดือนนี้</button>
+        <button class="btn" data-quick="all">ทั้งหมด</button>
+      </div>
+    </div>
+  </div>`;
+
+  if (person) html += personDetail(person, range);
+  html += whoWhere(range, model.people);
+  $('#main').innerHTML = html;
+
+  setupCombo();
+  $('#dFrom').addEventListener('change', (e) => { const v = e.target.value; if (v) setRange(v, range.to < v ? v : range.to); });
+  $('#dTo').addEventListener('change', (e) => { const v = e.target.value; if (v) setRange(range.from > v ? v : range.from, v); });
+  document.querySelectorAll('[data-quick]').forEach((b) => b.onclick = () => {
+    const t = clampDate(todayISO);
+    if (b.dataset.quick === 'today') setRange(t);
+    else if (b.dataset.quick === 'week') setRange(...weekRange(t));
+    else if (b.dataset.quick === 'month') setRange(t.slice(0, 8) + '01', t.slice(0, 8) + '31');
+    else setRange(model.first, model.last);
+  });
+  document.querySelectorAll('.chip[data-key]').forEach((b) => b.onclick = () => {
+    state.personKey = b.dataset.key;
+    renderPerson();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  // คลิกวันแรก = เลือกวันเดียว, คลิกอีกวัน = ขยายเป็นช่วง, คลิกครั้งถัดไป = เริ่มใหม่
+  document.querySelectorAll('.cal-day[data-date]').forEach((el) => el.onclick = () => {
+    const d = el.dataset.date;
+    if (range.single && d !== range.from && !state.calReset) { state.calReset = true; setRange(range.from, d); }
+    else { state.calReset = false; setRange(d); }
+  });
+}
+
+// dropdown รายชื่อ กรองแบบ realtime ขณะพิมพ์ (ไม่วาดทั้งหน้าใหม่)
+function setupCombo() {
+  const input = $('#q'), list = $('#comboList'), combo = $('#combo');
+  let items = [], active = -1;
+  const hl = (text, q) => {
+    if (!q) return esc(text);
+    const i = text.toLowerCase().indexOf(q.toLowerCase());
+    return i < 0 ? esc(text) : esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+  };
+  const draw = (q) => {
+    q = q.trim();
+    items = model.people.filter((p) => matchPerson(p, q));
+    active = items.length ? 0 : -1;
+    list.innerHTML = items.length
+      ? items.map((p, i) => {
+          const ss = sitesIn(p, getRange().dates), site = ss[0] && ss[0].site;
+          return `<div class="combo-item${i === active ? ' active' : ''}${p.key === state.personKey ? ' selected' : ''}" data-i="${i}" role="option">
+            <span class="combo-no">${esc(p.no)}</span>
+            <span class="combo-name"><b>${hl(p.nick, q)}</b> <span class="muted">· ${hl(p.prefix + p.name, q)}</span></span>
+            ${site ? `<span class="site-tag" style="${siteStyle(site)};font-size:12px">${esc(site)}</span>${ss.length > 1 ? `<span class="muted" style="font-size:12px">+${ss.length - 1}</span>` : ''}` : ''}
+          </div>`;
+        }).join('')
+      : '<div class="combo-empty">ไม่พบรายชื่อ</div>';
+    list.insertAdjacentHTML('afterbegin', `<div class="combo-count">${items.length} คน</div>`);
+  };
+  const open = (q) => { draw(q); combo.classList.add('open'); input.setAttribute('aria-expanded', 'true'); };
+  const close = () => { combo.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); };
+  const setActive = (i) => {
+    const els = list.querySelectorAll('.combo-item');
+    if (!els.length) return;
+    active = (i + els.length) % els.length;
+    els.forEach((el, k) => el.classList.toggle('active', k === active));
+    els[active].scrollIntoView({ block: 'nearest' });
+  };
+  const choose = (i) => { const p = items[i]; if (!p) return; state.personKey = p.key; close(); renderPerson(); };
+
+  input.addEventListener('focus', () => { input.select(); open(''); });
+  input.addEventListener('input', () => open(input.value));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); combo.classList.contains('open') ? setActive(active + 1) : open(''); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(active); }
+    else if (e.key === 'Escape') { close(); input.blur(); }
+  });
+  list.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const el = e.target.closest('.combo-item');
+    if (el) choose(Number(el.dataset.i));
+  });
+  list.addEventListener('mousemove', (e) => {
+    const el = e.target.closest('.combo-item');
+    if (el && Number(el.dataset.i) !== active) setActive(Number(el.dataset.i));
+  });
+  input.addEventListener('blur', () => setTimeout(close, 100));
+  $('#comboToggle').onmousedown = (e) => { e.preventDefault(); combo.classList.contains('open') ? close() : (input.focus()); };
+  $('#comboClear').onclick = () => { state.personKey = null; renderPerson(); $('#q').focus(); };
+}
+
+function personDetail(p, range) {
+  const ss = sitesIn(p, range.dates);
+  const inRange = (d) => d >= range.from && d <= range.to;
+  const cals = state.data.months.map((m) => {
+    const first = new Date(m.year, m.month - 1, 1).getDay();
+    const lead = (first + 6) % 7;
+    let cells = DOW.map((d) => `<div class="dow">${d}</div>`).join('') + '<div></div>'.repeat(lead);
+    for (const d of m.days) {
+      const s = p.days[d.date];
+      const cls = ['cal-day', s ? '' : 'off', d.date === todayISO ? 'today' : '', inRange(d.date) ? 'picked' : ''].join(' ');
+      cells += `<div class="${cls}" data-date="${d.date}" title="${fmtLong(d.date)}${s ? ' – ' + esc(s) : ''}" style="cursor:pointer;${s ? siteStyle(s) : ''}"><b>${d.day}</b>${s ? esc(s) : ''}</div>`;
+    }
+    return `<div class="cal"><h3>${monthLabel(m)}</h3><div class="cal-grid">${cells}</div></div>`;
+  }).join('');
+
+  const rows = p.periods.map((per) => `<tr style="${per.end >= range.from && per.start <= range.to ? 'background:var(--accent-soft)' : ''}"><td>${tag(per.site)}</td><td>${fmtDate(per.start)}</td><td>${fmtDate(per.end)}</td><td>${per.count} วัน</td></tr>`).join('');
+  return `<div class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <div><div class="big">${pname(p)} (${esc(p.nick)})</div><div class="muted">ลำดับที่ ${esc(p.no)}</div></div>
+      <div style="text-align:right"><div class="muted">${fmtRange(range)}</div>
+        <div class="row" style="margin-top:4px;justify-content:flex-end;gap:6px">${ss.length ? ss.map((x) => `${tag(x.site)}${range.single ? '' : `<span class="muted">${x.count} วัน (${fmtDate(x.first, { day: 'numeric', month: 'short' })}${x.first === x.last ? '' : ' – ' + fmtDate(x.last, { day: 'numeric', month: 'short' })})</span>`}`).join('') : '<span class="muted">ไม่มีไซต์ / วันหยุด</span>'}</div></div>
+    </div>
+    <h2>ช่วงเวลาที่อยู่แต่ละไซต์</h2>
+    ${rows ? `<div style="overflow-x:auto"><table class="list"><thead><tr><th>ไซต์</th><th>เริ่ม</th><th>ถึง</th><th>จำนวนวัน</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">ไม่มีข้อมูลไซต์</div>'}
+    <h2 style="margin-top:18px">ปฏิทิน <span class="muted" style="font-weight:400;font-size:13px">(คลิกวันเพื่อเลือกวันนั้น · คลิกอีกวันเพื่อเลือกเป็นช่วง)</span></h2>
+    <div class="cals">${cals}</div>
+  </div>`;
+}
+
+function whoWhere(range, people) {
+  const groups = new Map();
+  const none = [];
+  for (const p of people) {
+    const ss = sitesIn(p, range.dates);
+    if (!ss.length) { none.push(p); continue; }
+    for (const x of ss) {
+      if (!groups.has(x.site)) groups.set(x.site, []);
+      groups.get(x.site).push({ p, ...x });
+    }
+  }
+  const short = (d) => fmtDate(d, { day: 'numeric', month: 'short' });
+  const span = (x) => short(x.first) + (x.first === x.last ? '' : ' – ' + short(x.last));
+  const sorted = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+  const cards = sorted.map(([s, list]) => {
+    list.sort((a, b) => a.first.localeCompare(b.first) || b.count - a.count);
+    return `<div class="card" style="margin:0">
+      <div class="site-head">${tag(s)}<span class="muted">${list.length} คน</span></div>
+      <div class="chips">${list.map((x) => `<button class="chip" data-key="${esc(x.p.key)}" title="${esc(x.p.name)}: ${span(x)} (${x.count} วัน)">${esc(x.p.nick)} <span class="muted">· ${range.single ? esc(x.p.name) : `${span(x)} · ${x.count} วัน`}</span></button>`).join('')}</div>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <h2>${fmtRange(range)} — ใครอยู่ที่ไหน${range.single ? '' : ` <span class="muted" style="font-weight:400;font-size:14px">(${range.dates.length} วัน)</span>`}</h2>
+    <div class="grid2">${cards || '<div class="empty">ไม่มีใครมีไซต์ในช่วงนี้</div>'}</div>
+    ${none.length ? `<div style="margin-top:12px"><div class="muted" style="margin-bottom:6px">${range.single ? 'ไม่มีไซต์ / วันหยุด' : 'ไม่มีไซต์ตลอดช่วงนี้'} (${none.length} คน)</div><div class="chips">${none.map((p) => `<button class="chip" data-key="${esc(p.key)}">${esc(p.nick)}</button>`).join('')}</div></div>` : ''}
+  </div>`;
+}
+
+// ---------- หน้า 2: ภาพรวมแบบ Google Sheet ----------
+function renderAll() {
+  const months = state.data.months;
+  let sel = state.allMonth;
+  if (sel === 'current') {
+    const cur = months.find((m) => todayISO.startsWith(`${m.year}-${String(m.month).padStart(2, '0')}`));
+    sel = cur ? cur.gid : months[0].gid;
+  }
+  const shown = sel === 'all' ? months : months.filter((m) => m.gid === sel);
+  if (!shown.length) { state.allMonth = 'current'; return renderAll(); }
+  const people = model.people.filter((p) => matchPerson(p, state.allQuery));
+
+  const head1 = shown.map((m) => `<th colspan="${m.days.length}" class="mstart">${monthLabel(m)}</th>`).join('');
+  const head2 = shown.map((m) => m.days.map((d, i) => {
+    const dow = (new Date(m.year, m.month - 1, d.day).getDay() + 6) % 7;
+    const cls = [d.holiday ? 'hol' : '', d.date === todayISO ? 'today' : '', i === 0 ? 'mstart' : ''].join(' ');
+    return `<th class="${cls}" title="${fmtLong(d.date)}">${d.day}<div class="muted" style="font-size:10px;font-weight:400">${DOW[dow]}</div></th>`;
+  }).join('')).join('');
+
+  const body = people.map((p) => {
+    let tds = '';
+    for (const m of shown) {
+      let i = 0;
+      while (i < m.days.length) {
+        const s = p.days[m.days[i].date];
+        let j = i + 1;
+        while (j < m.days.length && p.days[m.days[j].date] === s) j++;
+        const span = j - i;
+        const ms = i === 0 ? ' mstart' : '';
+        if (s) tds += `<td class="day site${ms}" colspan="${span}" title="${esc(s)}: ${fmtDate(m.days[i].date)} – ${fmtDate(m.days[j - 1].date)}"><div class="blk" style="${siteStyle(s)};--bd:${shade(model.siteColor.get(s) || "#dddddd", 0.55)}">${esc(s)}</div></td>`;
+        else for (let k = i; k < j; k++) tds += `<td class="day blank${k === 0 ? ' mstart' : ''}"></td>`;
+        i = j;
+      }
+    }
+    return `<tr><td class="sticky c-no">${esc(p.no)}</td><td class="sticky c-name">${pname(p)}</td><td class="sticky c-nick">${esc(p.nick)}</td>${tds}</tr>`;
+  }).join('');
+
+  const used = new Set();
+  people.forEach((p) => shown.forEach((m) => m.days.forEach((d) => p.days[d.date] && used.add(p.days[d.date]))));
+
+  $('#main').innerHTML = `
+    <div class="row" style="margin-bottom:10px">
+      <select id="month">
+        ${months.map((m) => `<option value="${m.gid}" ${m.gid === sel ? 'selected' : ''}>${monthLabel(m)}</option>`).join('')}
+        <option value="all" ${sel === 'all' ? 'selected' : ''}>ทุกเดือน (ต่อกัน)</option>
+      </select>
+      <input type="search" id="aq" placeholder="กรองชื่อ / ชื่อเล่น…" value="${esc(state.allQuery)}">
+      <button class="btn" id="zoomOut" title="ย่อ">A−</button>
+      <button class="btn" id="zoomIn" title="ขยาย">A+</button>
+      <button class="btn primary" id="full">⛶ เต็มหน้าจอ</button>
+      <span class="muted">${people.length} คน</span>
+    </div>
+    <div class="sheet-wrap" id="sheetWrap" style="--fs:${state.fs}px">
+      <table class="sheet">
+        <thead>
+          <tr><th class="sticky c-no" rowspan="2">#</th><th class="sticky c-name" rowspan="2">ชื่อ - สกุล</th><th class="sticky c-nick" rowspan="2">ชื่อเล่น</th>${head1}</tr>
+          <tr>${head2}</tr>
+        </thead>
+        <tbody>${body || `<tr><td colspan="3" class="empty">ไม่พบรายชื่อ</td></tr>`}</tbody>
+      </table>
+    </div>
+    <div class="legend">${[...used].sort((a, b) => a.localeCompare(b, 'th')).map(tag).join('')}<span class="site-tag" style="background:var(--holiday)">ว่าง / วันหยุด</span></div>`;
+
+  const h1 = $('table.sheet thead tr').getBoundingClientRect().height;
+  $('#sheetWrap').style.setProperty('--h1', h1 + 'px');
+  $('#month').onchange = (e) => { state.allMonth = e.target.value; localSet('allMonth', e.target.value); renderAll(); };
+  $('#aq').addEventListener('input', (e) => {
+    state.allQuery = e.target.value; const pos = e.target.selectionStart;
+    renderAll(); const q = $('#aq'); q.focus(); q.setSelectionRange(pos, pos);
+  });
+  const zoom = (d) => { state.fs = Math.min(20, Math.max(9, state.fs + d)); localSet('fs', state.fs); $('#sheetWrap').style.setProperty('--fs', state.fs + 'px'); };
+  $('#zoomIn').onclick = () => zoom(1);
+  $('#zoomOut').onclick = () => zoom(-1);
+  $('#full').onclick = () => {
+    const el = $('#sheetWrap');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+  };
+  // เลื่อนไปที่คอลัมน์วันนี้
+  const t = $('table.sheet th.today');
+  if (t) { const w = $('#sheetWrap'); w.scrollLeft = Math.max(0, t.offsetLeft - 320); }
+}
+
+// ---------- หน้า 3: รายไซต์ ----------
+function renderSite() {
+  const months = state.data.months;
+  const range = state.siteMonth === 'all' ? null : (() => {
+    const m = months.find((x) => x.gid === state.siteMonth);
+    return m ? [m.days[0].date, m.days[m.days.length - 1].date] : null;
+  })();
+  const q = state.siteQuery.trim().toLowerCase();
+
+  const list = [...model.sites.values()].map((s) => {
+    const members = [...s.members.values()].map((mem) => {
+      let periods = mem.periods;
+      if (range) periods = periods.filter((p) => p.end >= range[0] && p.start <= range[1]);
+      if (!periods.length) return null;
+      const datesIn = model.dateList.filter((d) => mem.person.days[d] === s.site && (!range || (d >= range[0] && d <= range[1])));
+      return { person: mem.person, periods, first: datesIn[0], last: datesIn[datesIn.length - 1], count: datesIn.length, firstEver: mem.periods[0].start };
+    }).filter(Boolean).sort((a, b) => a.first.localeCompare(b.first) || Number(a.person.no) - Number(b.person.no));
+    return { site: s.site, members };
+  }).filter((s) => s.members.length)
+    .filter((s) => !q || s.site.toLowerCase().includes(q) || s.members.some((m) => matchPerson(m.person, q)))
+    .sort((a, b) => b.members.length - a.members.length);
+
+  const cards = list.map((s) => {
+    const first = s.members.reduce((a, m) => (m.first < a ? m.first : a), s.members[0].first);
+    const last = s.members.reduce((a, m) => (m.last > a ? m.last : a), s.members[0].last);
+    const today = s.members.filter((m) => m.person.days[todayISO] === s.site).length;
+    const rows = s.members.map((m) => {
+      const hit = q && !s.site.toLowerCase().includes(q) && matchPerson(m.person, q);
+      return `<tr style="${hit ? 'background:var(--accent-soft)' : ''}">
+        <td>${esc(m.person.no)}</td>
+        <td>${pname(m.person)} <span class="muted">(${esc(m.person.nick)})</span></td>
+        <td><b>${fmtDate(m.first)}</b>${m.first === model.first ? ' <span class="muted" title="อาจเข้าไซต์ก่อนช่วงข้อมูลที่มี">*</span>' : ''}</td>
+        <td>${fmtDate(m.last)}</td>
+        <td>${m.count} วัน</td>
+        <td class="periods">${m.periods.map((p) => p.start === p.end ? fmtDate(p.start, { day: 'numeric', month: 'short' }) : `${fmtDate(p.start, { day: 'numeric', month: 'short' })} – ${fmtDate(p.end, { day: 'numeric', month: 'short' })}`).join(', ')}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="card" id="site-${esc(s.site)}">
+      <div class="site-head">${tag(s.site)}
+        <span><b>${s.members.length}</b> คน</span>
+        <span class="muted">ช่วงงาน ${fmtDate(first)} – ${fmtDate(last)}</span>
+        ${today ? `<span class="muted">· วันนี้อยู่ ${today} คน</span>` : ''}
+      </div>
+      <div style="overflow-x:auto"><table class="list">
+        <thead><tr><th>#</th><th>ชื่อ</th><th>เข้าไซต์วันแรก</th><th>วันสุดท้าย</th><th>จำนวนวัน</th><th>ช่วงเวลา</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  }).join('');
+
+  $('#main').innerHTML = `
+    <div class="card">
+      <div class="row">
+        <input type="search" id="sq" placeholder="ค้นหาไซต์ หรือชื่อคน…" value="${esc(state.siteQuery)}">
+        <select id="sm">
+          <option value="all">ทุกเดือน</option>
+          ${months.map((m) => `<option value="${m.gid}" ${m.gid === state.siteMonth ? 'selected' : ''}>${monthLabel(m)}</option>`).join('')}
+        </select>
+        <span class="muted">${list.length} ไซต์</span>
+      </div>
+      <div class="legend" style="margin-bottom:0">${list.map((s) => `<a href="#site-${esc(s.site)}" style="text-decoration:none">${tag(s.site)}</a>`).join('')}</div>
+      <div class="muted" style="font-size:13px;margin-top:6px">* ข้อมูลเริ่มวันที่ ${fmtDate(model.first)} — คนที่อยู่ไซต์ตั้งแต่วันแรกของข้อมูลอาจเข้าไซต์มาก่อนหน้านั้น</div>
+    </div>
+        ${cards || '<div class="empty">ไม่พบข้อมูล</div>'}`;
+
+  $('#sq').addEventListener('input', (e) => {
+    state.siteQuery = e.target.value; const pos = e.target.selectionStart;
+    renderSite(); const el = $('#sq'); el.focus(); el.setSelectionRange(pos, pos);
+  });
+  $('#sm').onchange = (e) => { state.siteMonth = e.target.value; renderSite(); };
+}
+
+// ---------- ทั่วไป ----------
+function render() {
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === state.tab));
+  $('#main').classList.toggle('wide', state.tab === 'all');
+  ({ person: renderPerson, all: renderAll, site: renderSite })[state.tab]();
+}
+
+document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; localSet('tab', state.tab); history.replaceState(null, '', '#' + state.tab); render(); });
+
+async function load(refresh) {
+  const btn = $('#refresh');
+  btn.disabled = true; btn.textContent = 'กำลังโหลด…';
+  try {
+    const res = await fetch('/api/data' + (refresh ? '?refresh=1' : ''));
+    const data = await res.json();
+    if (!res.ok || !data.months) throw new Error(data.error || 'โหลดข้อมูลไม่สำเร็จ');
+    if (!refresh && state.data && JSON.stringify(state.data.months) === JSON.stringify(data.months)) return; // ไม่มีอะไรเปลี่ยน ไม่ต้องวาดใหม่
+    state.data = data;
+    model = buildModel(data);
+    $('#sheetLink').href = data.sheetUrl;
+    $('#meta').innerHTML = `${model.people.length} คน · ${data.months.map(monthLabel).join(', ')} · อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}${data.stale ? ' <span style="color:#dc2626">(ข้อมูลสำรอง: ' + esc(data.error) + ')</span>' : ''}`;
+    render();
+  } catch (err) {
+    $('#main').innerHTML = `<div class="err">${esc(err.message)}</div>`;
+  } finally {
+    $('#loading').style.display = 'none';
+    btn.disabled = false; btn.textContent = '↻ อัปเดตข้อมูล';
+  }
+}
+$('#refresh').onclick = () => load(true);
+load(false);
+setInterval(() => load(false), 5 * 60 * 1000);
+</script>
+</body>
+</html>
