@@ -1,0 +1,24 @@
+{
+  "name": "ตารางทีมติดตั้งระบบ",
+  "short_name": "ตารางทีม IM",
+  "description": "ดูว่าใครอยู่ไซต์ไหน วันไหน (ดูอย่างเดียว)",
+  "id": "./",
+  "start_url": "./#person",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "th",
+  "background_color": "#f4f6f9",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "รายบุคคล", "url": "./#person" },
+    { "name": "ภาพรวมทุกคน", "url": "./#all" },
+    { "name": "สรุปรายไซต์", "url": "./#site" }
+  ]
+}
