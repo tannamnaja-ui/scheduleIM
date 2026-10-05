@@ -113,6 +113,23 @@
   .site-card .chip { background: var(--panel); border-color: var(--sb); }
   .site-card .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
   .site-sum { margin-bottom: 16px; }
+  /* ลา */
+  .lv-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
+  .lv-stat { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+  .lv-stat b { display: block; font-size: 22px; }
+  .lv-month { font-size: 15px; font-weight: 700; margin: 18px 0 8px; color: var(--muted); }
+  .lv-item { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-left: 5px solid var(--lc, #999); border-radius: 10px; margin-bottom: 8px; background: var(--panel); cursor: pointer; }
+  .lv-item:hover { border-color: var(--accent); }
+  .lv-date { min-width: 64px; text-align: center; line-height: 1.15; }
+  .lv-date .d { font-size: 20px; font-weight: 700; }
+  .lv-date .m { font-size: 12px; color: var(--muted); }
+  .lv-main { flex: 1; min-width: 0; }
+  .lv-main .nm { font-weight: 600; }
+  .lv-badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; font-weight: 600; }
+  .lv-badge.now { background: #fee2e2; color: #b91c1c; }
+  .lv-badge.next { background: #dbeafe; color: #1d4ed8; }
+  .lv-badge.past { background: var(--bg); color: var(--muted); }
+  .lv-item.past { opacity: .7; }
   .site-sum .site-body { background: var(--bg2); color: var(--bt); border-radius: 8px; overflow-x: auto; padding: 0 8px; border: 1px solid var(--sb); }
   .site-sum table.list th, .site-sum table.list td { border-bottom-color: color-mix(in srgb, var(--sb) 45%, transparent); }
   .site-sum table.list th, .site-sum .muted, .site-sum .periods { color: inherit; opacity: .75; }
@@ -207,6 +224,7 @@
     <button data-tab="person" class="active"><span class="ico">👤</span><span class="full">รายบุคคล / ค้นหาตามวันที่</span><span class="ico-only">รายบุคคล</span></button>
     <button data-tab="all"><span class="ico">▦</span><span class="full">ภาพรวมทุกคน</span><span class="ico-only">ภาพรวม</span></button>
     <button data-tab="site"><span class="ico">📍</span><span class="full">สรุปรายไซต์</span><span class="ico-only">รายไซต์</span></button>
+    <button data-tab="leave"><span class="ico">🌴</span><span class="full">ลา</span><span class="ico-only">ลา</span></button>
   </nav>
 </header>
 <main id="main"></main>
@@ -230,13 +248,14 @@ const PALETTE = ['#fde68a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe', '#fed7aa
 const DOW = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
 
 const state = {
-  data: null, tab: ['person', 'all', 'site'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'person', // หน้าแรก = รายบุคคล
+  data: null, tab: ['person', 'all', 'site', 'leave'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'person', // หน้าแรก = รายบุคคล
   ...(() => { // คืนค่าที่เลือกไว้หลังแอปรีโหลดเพื่ออัปเดตเวอร์ชัน
     try { const v = JSON.parse(sessionStorage.getItem('sched.resume') || 'null'); sessionStorage.removeItem('sched.resume'); if (v) return v; } catch {}
     return { personKey: null, from: null, to: null };
   })(),
   allMonth: localGet('allMonth') || 'current', allQuery: '', fs: Number(localGet('fs')) || 13,
   siteQuery: '', siteMonth: 'all',
+  leaveFrom: null, leaveTo: null, leaveQuery: '',
 };
 function localGet(k) { try { return localStorage.getItem('sched.' + k); } catch { return null; } }
 function localSet(k, v) { try { localStorage.setItem('sched.' + k, v); } catch {} }
@@ -685,11 +704,125 @@ function renderSite() {
   $('#sm').onchange = (e) => { state.siteMonth = e.target.value; renderSite(); };
 }
 
+// ---------- หน้า 4: ลา ----------
+const isLeave = (site) => /^ลา(\s|$|ป่วย|กิจ|พักร้อน|พักผ่อน|คลอด|บวช|ออก|\()/.test(site);
+
+function renderLeave() {
+  const today = clampDate(todayISO);
+  let from = state.leaveFrom || today, to = state.leaveTo || model.last;
+  if (from > to) [from, to] = [to, from];
+  const q = state.leaveQuery.trim();
+  const short = (d) => fmtDate(d, { day: 'numeric', month: 'short' });
+  const dow = (d) => fmtDate(d, { weekday: 'short' });
+
+  // ช่วงลาของแต่ละคน (ใช้ periods เดิม: วันหยุด/ช่องว่างคั่นไม่เกิน 4 วันนับเป็นช่วงเดียว) ตัดให้อยู่ในช่วงที่เลือก
+  const items = [];
+  for (const p of model.people) {
+    if (!matchPerson(p, q)) continue;
+    for (const per of p.periods) {
+      if (!isLeave(per.site) || per.end < from || per.start > to) continue;
+      const days = model.dateList.filter((d) => d >= per.start && d <= per.end && d >= from && d <= to && p.days[d] === per.site);
+      if (!days.length) continue;
+      const start = days[0], end = days[days.length - 1];
+      const status = end < today ? 'past' : start > today ? 'next' : 'now';
+      items.push({ p, site: per.site, start, end, days, status });
+    }
+  }
+  items.sort((a, b) => a.start.localeCompare(b.start) || Number(a.p.no) - Number(b.p.no));
+
+  const people = new Set(items.map((x) => x.p.key));
+  const totalDays = items.reduce((n, x) => n + x.days.length, 0);
+  const nowCount = new Set(items.filter((x) => x.status === 'now').map((x) => x.p.key)).size;
+
+  let list = '', curMonth = '';
+  for (const x of items) {
+    const mk = x.start.slice(0, 7);
+    if (mk !== curMonth) { curMonth = mk; list += `<div class="lv-month">${fmtDate(x.start, { month: 'long', year: 'numeric' })}</div>`; }
+    const c = model.siteColor.get(x.site) || '#999';
+    const until = dayDiff(today, x.start);
+    const badge = x.status === 'now' ? '<span class="lv-badge now">กำลังลา</span>'
+      : x.status === 'next' ? `<span class="lv-badge next">${until === 1 ? 'พรุ่งนี้' : 'อีก ' + until + ' วัน'}</span>`
+      : '<span class="lv-badge past">ลาแล้ว</span>';
+    const range = x.start === x.end ? `${dow(x.start)} ${fmtDate(x.start)}` : `${dow(x.start)} ${short(x.start)} – ${dow(x.end)} ${fmtDate(x.end)}`;
+    const gaps = x.days.length < dayDiff(x.start, x.end) + 1 ? ` <span class="muted">(${x.days.map(short).join(', ')})</span>` : '';
+    list += `<div class="lv-item ${x.status}" style="--lc:${c}" data-key="${esc(x.p.key)}" data-i="${items.indexOf(x)}" title="ดูรายละเอียดของ ${esc(x.p.name)}">
+      <div class="lv-date"><div class="d">${Number(x.start.slice(8))}${x.start !== x.end ? '–' + Number(x.end.slice(8)) : ''}</div><div class="m">${fmtDate(x.start, { month: 'short' })}</div></div>
+      <div class="lv-main">
+        <div class="nm">${esc(x.p.nick)} <span class="muted" style="font-weight:400">· ${pname(x.p)}</span></div>
+        <div>${tag(x.site)} ${range} · <b>${x.days.length} วัน</b>${gaps}</div>
+      </div>
+      ${badge}
+    </div>`;
+  }
+
+  // สรุปรายคน
+  const byPerson = new Map();
+  for (const x of items) {
+    if (!byPerson.has(x.p.key)) byPerson.set(x.p.key, { p: x.p, days: 0, n: 0 });
+    const b = byPerson.get(x.p.key); b.days += x.days.length; b.n++;
+  }
+  const personRows = [...byPerson.values()].sort((a, b) => b.days - a.days || Number(a.p.no) - Number(b.p.no))
+    .map((b) => `<tr><td class="nm">${pname(b.p)} <span class="muted">(${esc(b.p.nick)})</span></td><td class="inline" data-label="รวม">${b.days} วัน</td><td class="inline" data-label="จำนวนครั้ง">${b.n} ครั้ง</td></tr>`).join('');
+
+  const m0 = today.slice(0, 8) + '01';
+  const [py, pm] = (() => { const [y, m] = today.split('-').map(Number); return m === 1 ? [y - 1, 12] : [y, m - 1]; })();
+  const prevFrom = `${py}-${String(pm).padStart(2, '0')}-01`, prevTo = `${py}-${String(pm).padStart(2, '0')}-31`;
+
+  $('#main').innerHTML = `
+    <div class="card" id="searchCard">
+      <h2>การลา ${from === today && to === model.last ? '<span class="muted" style="font-weight:400;font-size:14px">(ตั้งแต่วันนี้เป็นต้นไป)</span>' : ''}</h2>
+      <div class="row">
+        <input type="search" id="lq" class="grow" placeholder="กรองชื่อ / ชื่อเล่น…" value="${esc(state.leaveQuery)}">
+        <label class="row" style="gap:6px">วันที่ <input type="date" id="lFrom" value="${from}" min="${model.first}" max="${model.last}"></label>
+        <label class="row" style="gap:6px">ถึง <input type="date" id="lTo" value="${to}" min="${model.first}" max="${model.last}"></label>
+        <div class="row quick" style="gap:6px">
+          <button class="btn" data-lq="future">ตั้งแต่วันนี้</button>
+          <button class="btn" data-lq="month">เดือนนี้</button>
+          <button class="btn" data-lq="prev">เดือนที่แล้ว</button>
+          <button class="btn" data-lq="all">ทั้งหมด</button>
+        </div>
+      </div>
+      <div class="lv-stats">
+        <div class="lv-stat"><span class="muted">ช่วงที่เลือก</span><b style="font-size:16px">${short(from)} – ${fmtDate(to)}</b></div>
+        <div class="lv-stat"><span class="muted">คนที่ลา</span><b>${people.size} คน</b></div>
+        <div class="lv-stat"><span class="muted">รวมวันลา</span><b>${totalDays} วัน</b></div>
+        <div class="lv-stat"><span class="muted">วันนี้กำลังลา</span><b>${nowCount} คน</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>รายการลา (${items.length} รายการ)</h2>
+      ${list || '<div class="empty">ไม่มีการลาในช่วงนี้</div>'}
+    </div>
+    ${personRows ? `<div class="card"><h2>สรุปรายคน</h2><div style="overflow-x:auto"><table class="list stack"><thead><tr><th>ชื่อ</th><th>รวมวันลา</th><th>จำนวนครั้ง</th></tr></thead><tbody>${personRows}</tbody></table></div></div>` : ''}`;
+
+  const set = (f, t) => { state.leaveFrom = f; state.leaveTo = t; renderLeave(); };
+  $('#lFrom').addEventListener('change', (e) => { const v = e.target.value; if (v) set(clampDate(v), to < v ? clampDate(v) : to); });
+  $('#lTo').addEventListener('change', (e) => { const v = e.target.value; if (v) set(from > v ? clampDate(v) : from, clampDate(v)); });
+  document.querySelectorAll('[data-lq]').forEach((b) => b.onclick = () => {
+    const k = b.dataset.lq;
+    if (k === 'future') set(null, null);
+    else if (k === 'month') set(m0, today.slice(0, 8) + '31');
+    else if (k === 'prev') set(prevFrom, prevTo);
+    else set(model.first, model.last);
+  });
+  $('#lq').addEventListener('input', (e) => {
+    state.leaveQuery = e.target.value; const pos = e.target.selectionStart;
+    renderLeave(); const el = $('#lq'); el.focus(); el.setSelectionRange(pos, pos);
+  });
+  // แตะรายการ -> ไปหน้ารายบุคคลของคนนั้น พร้อมช่วงวันที่ลา
+  document.querySelectorAll('.lv-item[data-key]').forEach((el) => el.onclick = () => {
+    const x = items[Number(el.dataset.i)];
+    state.personKey = el.dataset.key;
+    if (x) { state.from = x.start; state.to = x.end; }
+    state.tab = 'person'; history.replaceState(null, '', '#person'); render(); window.scrollTo(0, 0);
+  });
+}
+
 // ---------- ทั่วไป ----------
 function render() {
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === state.tab));
   $('#main').classList.toggle('wide', state.tab === 'all');
-  ({ person: renderPerson, all: renderAll, site: renderSite })[state.tab]();
+  ({ person: renderPerson, all: renderAll, site: renderSite, leave: renderLeave })[state.tab]();
 }
 
 document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; localSet('tab', state.tab); history.replaceState(null, '', '#' + state.tab); render(); });

@@ -19,6 +19,7 @@
   "shortcuts": [
     { "name": "รายบุคคล", "url": "./#person" },
     { "name": "ภาพรวมทุกคน", "url": "./#all" },
-    { "name": "สรุปรายไซต์", "url": "./#site" }
+    { "name": "สรุปรายไซต์", "url": "./#site" },
+    { "name": "ลา", "url": "./#leave" }
   ]
 }
