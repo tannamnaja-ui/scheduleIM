@@ -113,7 +113,10 @@
   .site-card .chip { background: var(--panel); border-color: var(--sb); }
   .site-card .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
   .site-sum { margin-bottom: 16px; }
-  .site-sum .site-body { background: var(--panel); color: var(--text); border-radius: 8px; overflow-x: auto; padding: 0 8px; }
+  .site-sum .site-body { background: var(--bg2); color: var(--bt); border-radius: 8px; overflow-x: auto; padding: 0 8px; border: 1px solid var(--sb); }
+  .site-sum table.list th, .site-sum table.list td { border-bottom-color: color-mix(in srgb, var(--sb) 45%, transparent); }
+  .site-sum table.list th, .site-sum .muted, .site-sum .periods { color: inherit; opacity: .75; }
+  .site-sum table.list tbody tr:hover { background: rgba(255,255,255,.45); }
   .site-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
   .site-head .site-tag { font-size: 16px; }
   .periods { font-size: 13px; color: var(--muted); }
@@ -313,6 +316,12 @@ function shade(hex, f) {
   const h = hex.replace("#", "");
   const n = h.length === 3 ? h.split("").map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16));
   return "#" + n.map((v) => Math.round(v * f).toString(16).padStart(2, "0")).join("");
+}
+// ผสมสีกับขาว (w = สัดส่วนสีเดิม)
+function tint(hex, w) {
+  const h = hex.replace('#', '');
+  const n = h.length === 3 ? h.split('').map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16));
+  return '#' + n.map((v) => Math.round(v * w + 255 * (1 - w)).toString(16).padStart(2, '0')).join('');
 }
 function siteStyle(site) { const c = model.siteColor.get(site) || '#ddd'; return `background:${c};color:${textOn(c)}`; }
 const tag = (site) => `<span class="site-tag" style="${siteStyle(site)}">${esc(site)}</span>`;
@@ -641,7 +650,7 @@ function renderSite() {
       </tr>`;
     }).join('');
     const c = model.siteColor.get(s.site) || '#dddddd';
-    return `<div class="card site-card site-sum" id="site-${esc(s.site)}" style="--sc:${c};--sb:${shade(c, 0.6)};--st:${textOn(c)}">
+    return `<div class="card site-card site-sum" id="site-${esc(s.site)}" style="--sc:${c};--sb:${shade(c, 0.6)};--st:${textOn(c)};--bg2:${tint(c, 0.7)};--bt:${textOn(tint(c, 0.7))}">
       <div class="site-head">${tag(s.site)}
         <span class="cnt"><b>${s.members.length}</b> คน</span>
         <span>ช่วงงาน ${fmtDate(first)} – ${fmtDate(last)}</span>

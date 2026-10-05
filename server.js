@@ -210,6 +210,11 @@ http.createServer(async (req, res) => {
   if (!file.startsWith(PUBLIC_DIR)) { res.writeHead(403); return res.end(); }
   fs.readFile(file, (err, buf) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
+    // sw.js: ใส่เลขเวอร์ชันจากเวลาแก้ไขไฟล์ในเครื่อง -> แอปที่ติดตั้งจาก localhost อัปเดตเองเหมือนบน GitHub Pages
+    if (path.basename(file) === 'sw.js') {
+      const stamp = ['index.html', 'sw.js', 'config.js'].map((f) => { try { return fs.statSync(path.join(PUBLIC_DIR, f)).mtimeMs; } catch { return 0; } });
+      buf = Buffer.from(buf.toString('utf8').replace('__BUILD__', 'local-' + Math.max(...stamp).toString(36)));
+    }
     res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
     res.end(buf);
   });
