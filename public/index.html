@@ -112,6 +112,8 @@
   .site-card .cnt { font-weight: 600; }
   .site-card .chip { background: var(--panel); border-color: var(--sb); }
   .site-card .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .site-sum { margin-bottom: 16px; }
+  .site-sum .site-body { background: var(--panel); color: var(--text); border-radius: 8px; overflow-x: auto; padding: 0 8px; }
   .site-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
   .site-head .site-tag { font-size: 16px; }
   .periods { font-size: 13px; color: var(--muted); }
@@ -638,13 +640,14 @@ function renderSite() {
         <td class="periods" data-label="ช่วง">${m.periods.map((p) => p.start === p.end ? fmtDate(p.start, { day: 'numeric', month: 'short' }) : `${fmtDate(p.start, { day: 'numeric', month: 'short' })} – ${fmtDate(p.end, { day: 'numeric', month: 'short' })}`).join(', ')}</td>
       </tr>`;
     }).join('');
-    return `<div class="card" id="site-${esc(s.site)}">
+    const c = model.siteColor.get(s.site) || '#dddddd';
+    return `<div class="card site-card site-sum" id="site-${esc(s.site)}" style="--sc:${c};--sb:${shade(c, 0.6)};--st:${textOn(c)}">
       <div class="site-head">${tag(s.site)}
-        <span><b>${s.members.length}</b> คน</span>
-        <span class="muted">ช่วงงาน ${fmtDate(first)} – ${fmtDate(last)}</span>
-        ${today ? `<span class="muted">· วันนี้อยู่ ${today} คน</span>` : ''}
+        <span class="cnt"><b>${s.members.length}</b> คน</span>
+        <span>ช่วงงาน ${fmtDate(first)} – ${fmtDate(last)}</span>
+        ${today ? `<span>· วันนี้อยู่ ${today} คน</span>` : ''}
       </div>
-      <div style="overflow-x:auto"><table class="list stack">
+      <div class="site-body"><table class="list stack">
         <thead><tr><th>#</th><th>ชื่อ</th><th>เข้าไซต์วันแรก</th><th>วันสุดท้าย</th><th>จำนวนวัน</th><th>ช่วงเวลา</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
