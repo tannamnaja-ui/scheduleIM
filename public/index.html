@@ -130,6 +130,12 @@
   .lv-badge.next { background: #dbeafe; color: #1d4ed8; }
   .lv-badge.past { background: var(--bg); color: var(--muted); }
   .lv-item.past { opacity: .7; }
+  /* ออฟฟิศ */
+  .of-day { border: 1px solid var(--line); border-left: 5px solid var(--oc, #999); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .of-day.today { outline: 2px solid var(--today); outline-offset: 1px; }
+  .of-day.past { opacity: .7; }
+  .of-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .of-head .dt { font-weight: 700; }
   .site-sum .site-body { background: var(--bg2); color: var(--bt); border-radius: 8px; overflow-x: auto; padding: 0 8px; border: 1px solid var(--sb); }
   .site-sum table.list th, .site-sum table.list td { border-bottom-color: color-mix(in srgb, var(--sb) 45%, transparent); }
   .site-sum table.list th, .site-sum .muted, .site-sum .periods { color: inherit; opacity: .75; }
@@ -224,7 +230,8 @@
     <button data-tab="person" class="active"><span class="ico">👤</span><span class="full">รายบุคคล / ค้นหาตามวันที่</span><span class="ico-only">รายบุคคล</span></button>
     <button data-tab="all"><span class="ico">▦</span><span class="full">ภาพรวมทุกคน</span><span class="ico-only">ภาพรวม</span></button>
     <button data-tab="site"><span class="ico">📍</span><span class="full">สรุปรายไซต์</span><span class="ico-only">รายไซต์</span></button>
-    <button data-tab="leave"><span class="ico">🌴</span><span class="full">ลา</span><span class="ico-only">ลา</span></button>
+    <button data-tab="leave"><span class="ico">🌴</span><span class="full">คนที่ลา</span><span class="ico-only">คนที่ลา</span></button>
+    <button data-tab="office"><span class="ico">🏢</span><span class="full">คนอยู่ออฟฟิศ</span><span class="ico-only">ออฟฟิศ</span></button>
   </nav>
 </header>
 <main id="main"></main>
@@ -248,7 +255,7 @@ const PALETTE = ['#fde68a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe', '#fed7aa
 const DOW = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
 
 const state = {
-  data: null, tab: ['person', 'all', 'site', 'leave'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'person', // หน้าแรก = รายบุคคล
+  data: null, tab: ['person', 'all', 'site', 'leave', 'office'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'person', // หน้าแรก = รายบุคคล
   ...(() => { // คืนค่าที่เลือกไว้หลังแอปรีโหลดเพื่ออัปเดตเวอร์ชัน
     try { const v = JSON.parse(sessionStorage.getItem('sched.resume') || 'null'); sessionStorage.removeItem('sched.resume'); if (v) return v; } catch {}
     return { personKey: null, from: null, to: null };
@@ -256,6 +263,7 @@ const state = {
   allMonth: localGet('allMonth') || 'current', allQuery: '', fs: Number(localGet('fs')) || 13,
   siteQuery: '', siteMonth: 'all',
   leaveFrom: null, leaveTo: null, leaveQuery: '',
+  officeFrom: null, officeTo: null, officeQuery: '',
 };
 function localGet(k) { try { return localStorage.getItem('sched.' + k); } catch { return null; } }
 function localSet(k, v) { try { localStorage.setItem('sched.' + k, v); } catch {} }
@@ -770,7 +778,7 @@ function renderLeave() {
 
   $('#main').innerHTML = `
     <div class="card" id="searchCard">
-      <h2>การลา ${from === today && to === model.last ? '<span class="muted" style="font-weight:400;font-size:14px">(ตั้งแต่วันนี้เป็นต้นไป)</span>' : ''}</h2>
+      <h2>คนที่ลา ${from === today && to === model.last ? '<span class="muted" style="font-weight:400;font-size:14px">(ตั้งแต่วันนี้เป็นต้นไป)</span>' : ''}</h2>
       <div class="row">
         <input type="search" id="lq" class="grow" placeholder="กรองชื่อ / ชื่อเล่น…" value="${esc(state.leaveQuery)}">
         <label class="row" style="gap:6px">วันที่ <input type="date" id="lFrom" value="${from}" min="${model.first}" max="${model.last}"></label>
@@ -818,11 +826,94 @@ function renderLeave() {
   });
 }
 
+// ---------- หน้า 5: คนอยู่ออฟฟิศ ----------
+const isOffice = (site) => /ออฟฟิศ|ออฟฟิต|office/i.test(site);
+
+function renderOffice() {
+  const today = clampDate(todayISO);
+  let from = state.officeFrom || today, to = state.officeTo || from;
+  if (from > to) [from, to] = [to, from];
+  const q = state.officeQuery.trim();
+  const people = model.people.filter((p) => matchPerson(p, q));
+  const dates = model.dateList.filter((d) => d >= from && d <= to);
+  const holiday = new Map(model.dates.map((d) => [d.date, d.holiday]));
+
+  // รายวัน: ใครอยู่ออฟฟิศบ้าง
+  const days = dates.map((d) => ({ d, list: people.filter((p) => p.days[d] && isOffice(p.days[d])) })).filter((x) => x.list.length);
+  const per = new Map();
+  days.forEach((x) => x.list.forEach((p) => { if (!per.has(p.key)) per.set(p.key, { p, ds: [] }); per.get(p.key).ds.push(x.d); }));
+  const short = (d) => fmtDate(d, { day: 'numeric', month: 'short' });
+  const single = from === to;
+
+  const dayCards = days.map((x) => {
+    const site = p0site(x);
+    const c = model.siteColor.get(site) || '#999';
+    const status = x.d === today ? 'today' : x.d < today ? 'past' : '';
+    return `<div class="of-day ${status}" style="--oc:${c}">
+      <div class="of-head"><span class="dt">${fmtLong(x.d)}</span>${x.d === today ? '<span class="lv-badge now">วันนี้</span>' : ''}${holiday.get(x.d) ? '<span class="lv-badge past">วันหยุด</span>' : ''}<span class="muted">${x.list.length} คน</span></div>
+      <div class="chips">${x.list.map((p) => `<button class="chip" data-key="${esc(p.key)}" data-d="${x.d}">${esc(p.nick)} <span class="muted">· ${esc(p.name)}</span></button>`).join('')}</div>
+    </div>`;
+  }).join('');
+  function p0site(x) { return x.list[0].days[x.d]; }
+
+  const rows = [...per.values()].sort((a, b) => b.ds.length - a.ds.length || Number(a.p.no) - Number(b.p.no))
+    .map((b) => `<tr><td class="nm">${pname(b.p)} <span class="muted">(${esc(b.p.nick)})</span></td><td class="inline" data-label="รวม">${b.ds.length} วัน</td><td class="periods" data-label="วันที่">${b.ds.map(short).join(', ')}</td></tr>`).join('');
+
+  const todayCount = people.filter((p) => p.days[today] && isOffice(p.days[today])).length;
+
+  $('#main').innerHTML = `
+    <div class="card" id="searchCard">
+      <h2>คนอยู่ออฟฟิศ</h2>
+      <div class="row">
+        <input type="search" id="oq" class="grow" placeholder="กรองชื่อ / ชื่อเล่น…" value="${esc(state.officeQuery)}">
+        <label class="row" style="gap:6px">วันที่ <input type="date" id="oFrom" value="${from}" min="${model.first}" max="${model.last}"></label>
+        <label class="row" style="gap:6px">ถึง <input type="date" id="oTo" value="${to}" min="${model.first}" max="${model.last}"></label>
+        <div class="row quick" style="gap:6px">
+          <button class="btn" data-oq="today">วันนี้</button>
+          <button class="btn" data-oq="week">สัปดาห์นี้</button>
+          <button class="btn" data-oq="month">เดือนนี้</button>
+          <button class="btn" data-oq="all">ทั้งหมด</button>
+        </div>
+      </div>
+      <div class="lv-stats">
+        <div class="lv-stat"><span class="muted">ช่วงที่เลือก</span><b style="font-size:16px">${single ? fmtDate(from) : short(from) + ' – ' + fmtDate(to)}</b></div>
+        <div class="lv-stat"><span class="muted">วันนี้อยู่ออฟฟิศ</span><b>${todayCount} คน</b></div>
+        <div class="lv-stat"><span class="muted">${single ? 'คนในวันที่เลือก' : 'คนทั้งหมดในช่วงนี้'}</span><b>${per.size} คน</b></div>
+        <div class="lv-stat"><span class="muted">จำนวนวันที่มีคนอยู่</span><b>${days.length} วัน</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>${single ? fmtLong(from) + ' — ใครอยู่ออฟฟิศ' : 'รายวัน'}</h2>
+      ${dayCards || `<div class="empty">ไม่มีคนอยู่ออฟฟิศ${single ? 'ในวันนี้' : 'ในช่วงนี้'}</div>`}
+    </div>
+    ${!single && rows ? `<div class="card"><h2>สรุปรายคน</h2><div style="overflow-x:auto"><table class="list stack"><thead><tr><th>ชื่อ</th><th>จำนวนวัน</th><th>วันที่</th></tr></thead><tbody>${rows}</tbody></table></div></div>` : ''}`;
+
+  const set = (f, tt) => { state.officeFrom = f; state.officeTo = tt; renderOffice(); };
+  $('#oFrom').addEventListener('change', (e) => { const v = e.target.value; if (v) set(v, to < v ? v : to); });
+  $('#oTo').addEventListener('change', (e) => { const v = e.target.value; if (v) set(from > v ? v : from, v); });
+  document.querySelectorAll('[data-oq]').forEach((b) => b.onclick = () => {
+    const k = b.dataset.oq;
+    if (k === 'today') set(null, null);
+    else if (k === 'week') set(...weekRange(today));
+    else if (k === 'month') set(today.slice(0, 8) + '01', today.slice(0, 8) + '31');
+    else set(model.first, model.last);
+  });
+  $('#oq').addEventListener('input', (e) => {
+    state.officeQuery = e.target.value; const pos = e.target.selectionStart;
+    renderOffice(); const el = $('#oq'); el.focus(); el.setSelectionRange(pos, pos);
+  });
+  // แตะชื่อ -> หน้ารายบุคคลของวันนั้น
+  document.querySelectorAll('.of-day .chip[data-key]').forEach((el) => el.onclick = () => {
+    state.personKey = el.dataset.key; state.from = state.to = el.dataset.d;
+    state.tab = 'person'; history.replaceState(null, '', '#person'); render(); window.scrollTo(0, 0);
+  });
+}
+
 // ---------- ทั่วไป ----------
 function render() {
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === state.tab));
   $('#main').classList.toggle('wide', state.tab === 'all');
-  ({ person: renderPerson, all: renderAll, site: renderSite, leave: renderLeave })[state.tab]();
+  ({ person: renderPerson, all: renderAll, site: renderSite, leave: renderLeave, office: renderOffice })[state.tab]();
 }
 
 document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; localSet('tab', state.tab); history.replaceState(null, '', '#' + state.tab); render(); });
