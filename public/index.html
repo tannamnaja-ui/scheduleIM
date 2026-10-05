@@ -51,7 +51,7 @@
   .site-tag { display: inline-block; padding: 2px 10px; border-radius: 6px; font-weight: 600; white-space: nowrap; }
   .muted { color: var(--muted); }
   .empty { color: var(--muted); padding: 24px; text-align: center; }
-  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; align-items: start; }
   table.list { width: 100%; border-collapse: collapse; }
   table.list th, table.list td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
   table.list th { color: var(--muted); font-weight: 600; font-size: 13px; }
@@ -107,6 +107,11 @@
   .combo-count { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-size: 12px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
   .combo-empty { padding: 14px; color: var(--muted); text-align: center; }
   .combo mark { background: #fde047; color: #111; border-radius: 2px; }
+  .site-card { margin: 0; background: var(--sc); color: var(--st); border: 1.5px solid var(--sb); border-left: 6px solid var(--sb); }
+  .site-card .site-tag { box-shadow: 0 0 0 1.5px var(--sb); }
+  .site-card .cnt { font-weight: 600; }
+  .site-card .chip { background: var(--panel); border-color: var(--sb); }
+  .site-card .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
   .site-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
   .site-head .site-tag { font-size: 16px; }
   .periods { font-size: 13px; color: var(--muted); }
@@ -221,7 +226,10 @@ const DOW = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
 
 const state = {
   data: null, tab: ['person', 'all', 'site'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'person', // หน้าแรก = รายบุคคล
-  personKey: null, from: null, to: null,
+  ...(() => { // คืนค่าที่เลือกไว้หลังแอปรีโหลดเพื่ออัปเดตเวอร์ชัน
+    try { const v = JSON.parse(sessionStorage.getItem('sched.resume') || 'null'); sessionStorage.removeItem('sched.resume'); if (v) return v; } catch {}
+    return { personKey: null, from: null, to: null };
+  })(),
   allMonth: localGet('allMonth') || 'current', allQuery: '', fs: Number(localGet('fs')) || 13,
   siteQuery: '', siteMonth: 'all',
 };
@@ -497,8 +505,9 @@ function whoWhere(range, people) {
   const sorted = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
   const cards = sorted.map(([s, list]) => {
     list.sort((a, b) => a.first.localeCompare(b.first) || b.count - a.count);
-    return `<div class="card" style="margin:0">
-      <div class="site-head">${tag(s)}<span class="muted">${list.length} คน</span></div>
+    const c = model.siteColor.get(s) || '#dddddd';
+    return `<div class="card site-card" style="--sc:${c};--sb:${shade(c, 0.6)};--st:${textOn(c)}">
+      <div class="site-head">${tag(s)}<span class="cnt">${list.length} คน</span></div>
       <div class="chips">${list.map((x) => `<button class="chip" data-key="${esc(x.p.key)}" title="${esc(x.p.name)}: ${span(x)} (${x.count} วัน)">${esc(x.p.nick)} <span class="muted">· ${range.single ? esc(x.p.name) : `${span(x)} · ${x.count} วัน`}</span></button>`).join('')}</div>
     </div>`;
   }).join('');
@@ -716,9 +725,21 @@ $('#refresh').onclick = () => load(true);
 if (location.hash.slice(1) !== state.tab) history.replaceState(null, '', '#' + state.tab); // ให้ URL แสดงหน้าปัจจุบัน เช่น #person
 load(false);
 
+// แอปเวอร์ชันใหม่ (deploy ใหม่) -> service worker ตัวใหม่ -> รีโหลดหน้าเองโดยจำคน/ช่วงวันที่ที่เลือกไว้
+let swReg = null;
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  let hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) { hadController = true; return; } // ติดตั้งครั้งแรก ไม่ต้องรีโหลด
+    if (reloading) return;
+    reloading = true;
+    try { sessionStorage.setItem('sched.resume', JSON.stringify({ personKey: state.personKey, from: state.from, to: state.to })); } catch {}
+    location.reload();
+  });
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => { swReg = r; }).catch(() => {}));
 }
+const checkAppUpdate = () => { if (swReg) swReg.update().catch(() => {}); };
 (() => {
   const btn = $('#installBtn');
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
@@ -735,8 +756,8 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 })();
 // อัปเดตอัตโนมัติ: ทุก 1 นาทีเมื่อมี Apps Script (ข้อมูลสด), ไม่งั้นทุก 5 นาที — และทุกครั้งที่กลับมาเปิดแอป
 const POLL_MS = window.SCHEDULE_API ? 60 * 1000 : 5 * 60 * 1000;
-setInterval(() => { if (document.visibilityState === 'visible') load(false); }, POLL_MS);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(false); });
+setInterval(() => { if (document.visibilityState === 'visible') { load(false); checkAppUpdate(); } }, POLL_MS);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { load(false); checkAppUpdate(); } });
 </script>
 </body>
 </html>
