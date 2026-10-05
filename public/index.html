@@ -200,6 +200,7 @@
   </nav>
 </header>
 <main id="main"></main>
+<script src="config.js"></script>
 <div class="modal" id="iosModal">
   <div class="sheet-card">
     <h2 style="margin-top:0">ติดตั้งแอปบน iPhone / iPad</h2>
@@ -675,6 +676,14 @@ document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => { sta
 // รันผ่าน node server.js -> ใช้ /api/data (สดจาก Google Sheet)
 // รันบน GitHub Pages -> ใช้ data.json ที่ GitHub Actions สร้างไว้
 async function fetchData(refresh) {
+  // 1) Google Apps Script: ข้อมูลสดจาก Google Sheet
+  if (window.SCHEDULE_API) {
+    try {
+      const res = await fetch(window.SCHEDULE_API + (window.SCHEDULE_API.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) { const d = await res.json(); if (d.months) return d; }
+    } catch {}
+  }
+  // 2) node server.js  3) data.json จาก GitHub Actions
   try {
     const res = await fetch('api/data' + (refresh ? '?refresh=1' : ''), { cache: 'no-store' });
     if (res.ok && (res.headers.get('content-type') || '').includes('json')) return await res.json();
@@ -724,7 +733,10 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     else $('#iosModal').classList.add('show');
   };
 })();
-setInterval(() => load(false), 5 * 60 * 1000);
+// อัปเดตอัตโนมัติ: ทุก 1 นาทีเมื่อมี Apps Script (ข้อมูลสด), ไม่งั้นทุก 5 นาที — และทุกครั้งที่กลับมาเปิดแอป
+const POLL_MS = window.SCHEDULE_API ? 60 * 1000 : 5 * 60 * 1000;
+setInterval(() => { if (document.visibilityState === 'visible') load(false); }, POLL_MS);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(false); });
 </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 // Service worker: เปิดแอปได้แม้ออฟไลน์ (ใช้ข้อมูลล่าสุดที่เคยโหลด)
-const CACHE = 'schedule-im-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg'];
+const CACHE = 'schedule-im-v2';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './config.js', './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

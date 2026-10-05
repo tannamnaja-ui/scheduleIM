@@ -7,6 +7,13 @@
 - GitHub Actions ([.github/workflows/pages.yml](.github/workflows/pages.yml)) ดึงข้อมูลจาก Google Sheet ทุก 15 นาที และทุกครั้งที่ push แล้วสร้าง `data.json` ให้หน้าเว็บ
 - สั่งอัปเดตทันทีได้ที่แท็บ Actions → Deploy to GitHub Pages → Run workflow
 
+## อัปเดตอัตโนมัติเมื่อแก้ Google Sheet (ภายใน ~1 นาที)
+1. เปิด https://script.google.com → **New project** → วางโค้ดจาก [apps-script/Code.gs](apps-script/Code.gs) → Save
+2. **Deploy → New deployment** → เลือกประเภท **Web app** → Execute as: **Me**, Who has access: **Anyone** → Deploy → อนุญาตสิทธิ์
+3. คัดลอก Web app URL (ลงท้าย `/exec`) ใส่ใน [public/config.js](public/config.js) แล้ว push
+
+แอปจะดึงข้อมูลสดทุก 1 นาทีและทุกครั้งที่กลับมาเปิดแอป ถ้า Apps Script ใช้ไม่ได้จะใช้ `data.json` จาก GitHub Actions แทนอัตโนมัติ
+
 ## ติดตั้งเป็นแอปบนมือถือ (PWA)
 - **Android (Chrome):** เปิดลิงก์ด้านบน → แตะปุ่ม ⬇ มุมขวาบน หรือเมนู ⋮ → *ติดตั้งแอป / เพิ่มลงในหน้าจอหลัก*
 - **iPhone/iPad (Safari):** เปิดลิงก์ → ปุ่มแชร์ ⬆ → *เพิ่มไปยังหน้าจอโฮม*
