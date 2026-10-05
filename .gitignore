@@ -1,3 +1,4 @@
 node_modules/
 data-cache.json
 *.log
+public/data.json

@@ -2,7 +2,12 @@
 
 ดึงข้อมูลจาก Google Sheet ทุกแท็บรายเดือน (ชื่อแท็บแบบ `ตค 2569`, `พย 2569`, …) โดยอ่าน merged cell และสีของแต่ละไซต์
 
-## วิธีใช้
+## เว็บออนไลน์ (GitHub Pages)
+- https://tannamnaja-ui.github.io/scheduleIM/
+- GitHub Actions ([.github/workflows/pages.yml](.github/workflows/pages.yml)) ดึงข้อมูลจาก Google Sheet ทุก 15 นาที และทุกครั้งที่ push แล้วสร้าง `data.json` ให้หน้าเว็บ
+- สั่งอัปเดตทันทีได้ที่แท็บ Actions → Deploy to GitHub Pages → Run workflow
+
+## วิธีใช้ในเครื่อง (ข้อมูลสดทุกครั้งที่กดอัปเดต)
 - ดับเบิลคลิก `start.bat` หรือรัน `node server.js` (ต้องมี Node.js 18 ขึ้นไป) แล้วเปิด http://localhost:4000
 - ข้อมูลรีเฟรชอัตโนมัติทุก 5 นาที หรือกดปุ่ม "อัปเดตข้อมูล"
 - ถ้าเชื่อมต่อ Google ไม่ได้ ระบบจะใช้ข้อมูลล่าสุดใน `data-cache.json`

@@ -134,7 +134,7 @@ const PALETTE = ['#fde68a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe', '#fed7aa
 const DOW = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
 
 const state = {
-  data: null, tab: ['person', 'all', 'site'].includes(location.hash.slice(1)) ? location.hash.slice(1) : (localGet('tab') || 'person'),
+  data: null, tab: ['person', 'all', 'site'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'person', // หน้าแรก = รายบุคคล
   personKey: null, from: null, to: null,
   allMonth: localGet('allMonth') || 'current', allQuery: '', fs: Number(localGet('fs')) || 13,
   siteQuery: '', siteMonth: 'all',
@@ -587,13 +587,24 @@ function render() {
 
 document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; localSet('tab', state.tab); history.replaceState(null, '', '#' + state.tab); render(); });
 
+// รันผ่าน node server.js -> ใช้ /api/data (สดจาก Google Sheet)
+// รันบน GitHub Pages -> ใช้ data.json ที่ GitHub Actions สร้างไว้
+async function fetchData(refresh) {
+  try {
+    const res = await fetch('api/data' + (refresh ? '?refresh=1' : ''), { cache: 'no-store' });
+    if (res.ok && (res.headers.get('content-type') || '').includes('json')) return await res.json();
+  } catch {}
+  const res = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ (' + res.status + ')');
+  return res.json();
+}
+
 async function load(refresh) {
   const btn = $('#refresh');
   btn.disabled = true; btn.textContent = 'กำลังโหลด…';
   try {
-    const res = await fetch('/api/data' + (refresh ? '?refresh=1' : ''));
-    const data = await res.json();
-    if (!res.ok || !data.months) throw new Error(data.error || 'โหลดข้อมูลไม่สำเร็จ');
+    const data = await fetchData(refresh);
+    if (!data.months) throw new Error(data.error || 'โหลดข้อมูลไม่สำเร็จ');
     if (!refresh && state.data && JSON.stringify(state.data.months) === JSON.stringify(data.months)) return; // ไม่มีอะไรเปลี่ยน ไม่ต้องวาดใหม่
     state.data = data;
     model = buildModel(data);

@@ -189,6 +189,7 @@ async function getData(force) {
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
 
+function startServer() {
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
@@ -213,3 +214,7 @@ http.createServer(async (req, res) => {
     res.end(buf);
   });
 }).listen(PORT, () => console.log(`ระบบสรุปตารางทีมติดตั้ง: http://localhost:${PORT}`));
+}
+
+if (require.main === module) startServer();
+module.exports = { loadAll };
