@@ -89,6 +89,9 @@
   table.sheet th.today { background: var(--today); color: #000; }
   table.sheet th.mstart, table.sheet td.mstart { border-left: 2px solid var(--muted); }
   table.sheet tbody tr:hover td.sticky { background: var(--accent-soft); }
+  table.sheet tr.grp td { background: var(--bg); border-top: 2px solid var(--muted); padding: 5px 8px; }
+  table.sheet td.c-grp { left: 0; z-index: 2; white-space: nowrap; }
+  table.sheet tr.gsep td { border-top: 2px solid var(--muted); }
   .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 
   /* รายไซต์ */
@@ -195,6 +198,7 @@
     table.sheet .c-no, table.sheet .c-name { display: none; }
     table.sheet .c-nick { left: 0; min-width: 64px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
     table.sheet { --stick-left: 64px; }
+    table.sheet .blk { text-align: left; }
     input.grow { flex: 1 1 100%; order: -1; }
     #month { flex: 1; }
     #searchCard label.row { display: grid; grid-template-columns: auto 1fr; }
@@ -264,6 +268,7 @@ const state = {
   siteQuery: '', siteMonth: 'all',
   leaveFrom: null, leaveTo: null, leaveQuery: '',
   officeFrom: null, officeTo: null, officeQuery: '',
+  allGroup: localGet('allGroup') === '1',
 };
 function localGet(k) { try { return localStorage.getItem('sched.' + k); } catch { return null; } }
 function localSet(k, v) { try { localStorage.setItem('sched.' + k, v); } catch {} }
@@ -566,7 +571,32 @@ function renderAll() {
   }
   const shown = sel === 'all' ? months : months.filter((m) => m.gid === sel);
   if (!shown.length) { state.allMonth = 'current'; return renderAll(); }
-  const people = model.people.filter((p) => matchPerson(p, state.allQuery));
+  let people = model.people.filter((p) => matchPerson(p, state.allQuery));
+  const shownDates = shown.flatMap((m) => m.days.map((d) => d.date));
+  const totalCols = shownDates.length;
+  const sig = new Map(), mainSite = new Map();
+  if (state.allGroup) {
+    for (const p of people) {
+      sig.set(p.key, shownDates.map((d) => p.days[d] || '').join('|'));
+      const cnt = new Map();
+      shownDates.forEach((d) => { const x = p.days[d]; if (x) cnt.set(x, (cnt.get(x) || 0) + 1); });
+      mainSite.set(p.key, [...cnt].sort((a, b) => b[1] - a[1])[0]?.[0] || '');
+    }
+    const sigSize = new Map();
+    sig.forEach((v) => sigSize.set(v, (sigSize.get(v) || 0) + 1));
+    const siteSize = new Map();
+    mainSite.forEach((v) => siteSize.set(v, (siteSize.get(v) || 0) + 1));
+    people = [...people].sort((a, b) => {
+      const sa = mainSite.get(a.key), sb = mainSite.get(b.key);
+      if (sa !== sb) {
+        if (!sa || !sb) return sa ? -1 : 1; // คนไม่มีไซต์ไว้ท้ายสุด
+        return siteSize.get(sb) - siteSize.get(sa) || sa.localeCompare(sb, 'th');
+      }
+      const ga = sig.get(a.key), gb = sig.get(b.key);
+      if (ga !== gb) return sigSize.get(gb) - sigSize.get(ga) || ga.localeCompare(gb, 'th');
+      return Number(a.no) - Number(b.no);
+    });
+  }
 
   const head1 = shown.map((m) => `<th colspan="${m.days.length}" class="mstart"><span class="stick">${monthLabel(m)}</span></th>`).join('');
   const head2 = shown.map((m) => m.days.map((d, i) => {
@@ -575,7 +605,18 @@ function renderAll() {
     return `<th class="${cls}" title="${fmtLong(d.date)}">${d.day}<div class="muted" style="font-size:10px;font-weight:400">${DOW[dow]}</div></th>`;
   }).join('')).join('');
 
+  let prevSite = null, prevSig = null;
   const body = people.map((p) => {
+    let pre = '', cls = '';
+    if (state.allGroup) {
+      const ms = mainSite.get(p.key), g = sig.get(p.key);
+      if (ms !== prevSite) {
+        const n = people.filter((x) => mainSite.get(x.key) === ms).length;
+        const kinds = new Set(people.filter((x) => mainSite.get(x.key) === ms).map((x) => sig.get(x.key))).size;
+        pre = `<tr class="grp"><td class="sticky c-grp" colspan="3">${ms ? tag(ms) : '<span class="site-tag" style="background:var(--holiday)">ไม่มีไซต์ในช่วงนี้</span>'} <b>${n} คน</b>${kinds > 1 ? ` <span class="muted">· ${kinds} แบบตาราง</span>` : ''}</td><td colspan="${totalCols}" class="grp-fill"></td></tr>`;
+      } else if (g !== prevSig) cls = 'gsep';
+      prevSite = ms; prevSig = g;
+    }
     let tds = '';
     for (const m of shown) {
       let i = 0;
@@ -590,7 +631,7 @@ function renderAll() {
         i = j;
       }
     }
-    return `<tr><td class="sticky c-no">${esc(p.no)}</td><td class="sticky c-name">${pname(p)}</td><td class="sticky c-nick" title="${esc(p.prefix + p.name)}">${esc(p.nick)}</td>${tds}</tr>`;
+    return pre + `<tr class="${cls}"><td class="sticky c-no">${esc(p.no)}</td><td class="sticky c-name">${pname(p)}</td><td class="sticky c-nick" title="${esc(p.prefix + p.name)}">${esc(p.nick)}</td>${tds}</tr>`;
   }).join('');
 
   const used = new Set();
@@ -603,6 +644,7 @@ function renderAll() {
         <option value="all" ${sel === 'all' ? 'selected' : ''}>ทุกเดือน (ต่อกัน)</option>
       </select>
       <input type="search" id="aq" class="grow" placeholder="กรองชื่อ / ชื่อเล่น…" value="${esc(state.allQuery)}">
+      <label class="btn" style="cursor:pointer"><input type="checkbox" id="grp" ${state.allGroup ? 'checked' : ''} style="margin:0;width:16px;height:16px"> จัดกลุ่มคนที่อยู่ไซต์เดียวกัน</label>
       <button class="btn" id="zoomOut" title="ย่อ">A−</button>
       <button class="btn" id="zoomIn" title="ขยาย">A+</button>
       <button class="btn primary" id="full">⛶ เต็มหน้าจอ</button>
@@ -621,6 +663,7 @@ function renderAll() {
 
   const h1 = $('table.sheet thead tr').getBoundingClientRect().height;
   $('#sheetWrap').style.setProperty('--h1', h1 + 'px');
+  $('#grp').onchange = (e) => { state.allGroup = e.target.checked; localSet('allGroup', state.allGroup ? '1' : '0'); renderAll(); };
   $('#month').onchange = (e) => { state.allMonth = e.target.value; localSet('allMonth', e.target.value); renderAll(); };
   $('#aq').addEventListener('input', (e) => {
     state.allQuery = e.target.value; const pos = e.target.selectionStart;
